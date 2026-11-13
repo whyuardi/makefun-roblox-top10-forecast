@@ -1,3 +1,5 @@
+# VARIANT v108-hl36fastminp06: v107 + MIN_P 0.006
+# Generated from v61 (submitted) — main.py untouched.
 # VARIANT v61-v60rho95: v60 + RHO 0.95
 # From render2_base (per-place shrink). main.py untouched.
 #!/usr/bin/env python3
@@ -40,7 +42,7 @@ from datetime import datetime
 
 # ---------------------------------------------------------------- tunables
 SEED = 20261113
-VEL_HALF_LIFE_H = 12.0      # EWMA half-life for rank velocity (hours)
+VEL_HALF_LIFE_H = 36.0
 VEL_CAP = 0.5               # cap |velocity| (ranks/hour)
 VEL_SHRINK = 0.2            # shrink EWMA velocity toward 0 (see estimate())
 RHO = 0.95
@@ -50,7 +52,7 @@ DRIFT_LOW = -0.03           # ranks/hour drift for rank > 30 (upward)
 NEW_PER_HOUR = 1.5
 NEW_RANK_LO, NEW_RANK_HI = 40.0, 95.0
 PHANTOM_SURGE_P = 0.12
-SURGE_T_MIN, SURGE_T_MAX = 8.0, 20.0   # hours for a surge to reach its target
+SURGE_T_MIN, SURGE_T_MAX = 6, 14   # hours for a surge to reach its target
 EXIT_TENURE_DAYS = 14.0     # extra exit hazard beyond this chart tenure
 EXIT_TENURE_EXTRA = 0.004   # per hour
 OLD_OUT_HAZARD = 0.008      # extra exit hazard for age>7d games outside top 10
@@ -70,7 +72,7 @@ def surge_prob(rank, age_h):
 SHRINK = 0.20               # blend toward persistence prior (tuned: 0.2 best on 3 windows)
 SHRINK_PER_PLACE = [0.30, 0.25, 0.20, 0.20, 0.15, 0.15, 0.10, 0.10, 0.10, 0.10]  # per-place shrink (place 1 most persistent)
 UNNAMED_MULT = 1.0         # multiplier on phantom share -> unnamed mass per place
-MIN_P = 0.004              # smallest named probability (tuned: 0.004 best on 3 windows)
+MIN_P = 0.006
 MAX_ROWS_PER_PLACE = 100
 BATCH = 100                   # simulations per batch inside mc_marginals
 # Simulation count is FIXED (max_sims=2500 in mc_marginals/forecast) so the
