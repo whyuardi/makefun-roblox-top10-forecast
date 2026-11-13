@@ -1,3 +1,5 @@
+# VARIANT v61-v60rho95: v60 + RHO 0.95
+# From render2_base (per-place shrink). main.py untouched.
 #!/usr/bin/env python3
 """Roblox Up-and-Coming top-10 forecaster (make.fun roblox-up-and-coming-forecast-01).
 
@@ -41,13 +43,13 @@ SEED = 20261113
 VEL_HALF_LIFE_H = 12.0      # EWMA half-life for rank velocity (hours)
 VEL_CAP = 0.5               # cap |velocity| (ranks/hour)
 VEL_SHRINK = 0.2            # shrink EWMA velocity toward 0 (see estimate())
-RHO = 0.85                  # hourly AR(1) persistence of velocity
+RHO = 0.95
 SIGMA_V = 0.10              # hourly velocity noise (ranks/hour)
 DRIFT_TOP = 0.02            # ranks/hour drift for rank <= 30 (downward)
 DRIFT_LOW = -0.03           # ranks/hour drift for rank > 30 (upward)
-NEW_PER_HOUR = 0.9          # brand-new games entering the chart per hour
+NEW_PER_HOUR = 1.5
 NEW_RANK_LO, NEW_RANK_HI = 40.0, 95.0
-PHANTOM_SURGE_P = 0.05      # fraction of brand-new games that surge to top 10
+PHANTOM_SURGE_P = 0.12
 SURGE_T_MIN, SURGE_T_MAX = 8.0, 20.0   # hours for a surge to reach its target
 EXIT_TENURE_DAYS = 14.0     # extra exit hazard beyond this chart tenure
 EXIT_TENURE_EXTRA = 0.004   # per hour
@@ -66,6 +68,8 @@ def surge_prob(rank, age_h):
     age_f = 1.0 if age_h < 24 else (0.8 if age_h < 72 else 0.5)
     return base * age_f
 SHRINK = 0.20               # blend toward persistence prior (tuned: 0.2 best on 3 windows)
+SHRINK_PER_PLACE = [0.30, 0.25, 0.20, 0.20, 0.15, 0.15, 0.10, 0.10, 0.10, 0.10]  # per-place shrink (place 1 most persistent)
+UNNAMED_MULT = 1.0         # multiplier on phantom share -> unnamed mass per place
 MIN_P = 0.004              # smallest named probability (tuned: 0.004 best on 3 windows)
 MAX_ROWS_PER_PLACE = 100
 BATCH = 100                   # simulations per batch inside mc_marginals
@@ -304,7 +308,7 @@ def mc_marginals(snaps, places=10, hours=72, max_sims=2000,
     return {"mc": mc, "phantom": phantom, "chart": chart, "sims": sims}
 
 
-def render(mcres, places=10, shrink=SHRINK, min_p=MIN_P,
+def render(mcres, places=10, shrink=None, min_p=MIN_P,
            unnamed_floor=0.01):
     """Turn raw MC marginals into the forecast dict (probabilities + top10).
     Shrinkage blends the MC marginals toward a persistence prior; the
@@ -322,17 +326,23 @@ def render(mcres, places=10, shrink=SHRINK, min_p=MIN_P,
                 prior[k][chart[k]] = prior[k].get(chart[k], 0.0) + 0.15
     probs = {k: {} for k in range(1, places + 1)}
     for k in range(1, places + 1):
+        if shrink is None:
+            sk = SHRINK_PER_PLACE[k - 1]
+        elif isinstance(shrink, (list, tuple)):
+            sk = shrink[k - 1]
+        else:
+            sk = shrink
         for uid, m in mc[k].items():
-            probs[k][uid] = (1.0 - shrink) * m + shrink * prior[k].get(uid, 0.0)
+            probs[k][uid] = (1.0 - sk) * m + sk * prior[k].get(uid, 0.0)
         # games the MC never put at this place but the prior names get a
         # small mass too (persistence of the current chart)
         for uid, pr in prior[k].items():
             if uid not in probs[k]:
-                probs[k][uid] = shrink * pr
+                probs[k][uid] = sk * pr
     rows = []
     for k in range(1, places + 1):
         cand = sorted(probs[k].items(), key=lambda kv: -kv[1])
-        unnamed_target = max(phantom[k], unnamed_floor)
+        unnamed_target = max(phantom[k] * UNNAMED_MULT, unnamed_floor)
         named = []
         s = 0.0
         for uid, p in cand:
